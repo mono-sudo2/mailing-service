@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from './mail.constants';
+import { MailServiceAuthGuard } from './mail-service-auth.guard';
 import { MailController } from './mail.controller';
 import { MailService } from './mail.service';
 
@@ -16,6 +17,7 @@ import { MailService } from './mail.service';
   controllers: [MailController],
   providers: [
     MailService,
+    MailServiceAuthGuard,
     {
       provide: SUPABASE_CLIENT,
       useFactory: (config: ConfigService) =>

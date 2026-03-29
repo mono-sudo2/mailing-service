@@ -6,7 +6,6 @@ import {
   IsObject,
   IsOptional,
   IsString,
-  IsUUID,
 } from 'class-validator';
 
 function toEmailArray(value: unknown): string[] {
@@ -31,13 +30,6 @@ function toOptionalEmailArray(value: unknown): string[] | undefined {
 }
 
 export class SendMailDto {
-  @IsUUID()
-  templateId!: string;
-
-  @IsOptional()
-  @IsUUID()
-  orgId?: string;
-
   @Transform(({ value }) => toEmailArray(value))
   @IsArray()
   @ArrayNotEmpty()

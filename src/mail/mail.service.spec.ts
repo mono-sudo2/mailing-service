@@ -60,8 +60,9 @@ describe('MailService', () => {
     service = module.get(MailService);
   });
 
+  const templateId = '550e8400-e29b-41d4-a716-446655440000';
+
   const baseDto: SendMailDto = {
-    templateId: '550e8400-e29b-41d4-a716-446655440000',
     to: ['user@test.local'],
     subject: 'Hi {{name}}',
     variables: { name: 'Ada' },
@@ -80,7 +81,7 @@ describe('MailService', () => {
       }),
     );
 
-    const result = await service.send(baseDto);
+    const result = await service.send(templateId, baseDto);
 
     expect(mockSupabase.from).toHaveBeenCalledWith('templates');
     expect(httpPost).toHaveBeenCalledWith(
@@ -107,7 +108,7 @@ describe('MailService', () => {
   it('throws NotFoundException when template is missing', async () => {
     maybeSingle.mockResolvedValue({ data: null, error: null });
 
-    await expect(service.send(baseDto)).rejects.toBeInstanceOf(
+    await expect(service.send(templateId, baseDto)).rejects.toBeInstanceOf(
       NotFoundException,
     );
     expect(httpPost).not.toHaveBeenCalled();
@@ -126,12 +127,12 @@ describe('MailService', () => {
       }),
     );
 
-    await expect(service.send(baseDto)).rejects.toBeInstanceOf(
+    await expect(service.send(templateId, baseDto)).rejects.toBeInstanceOf(
       BadGatewayException,
     );
   });
 
-  it('scopes by org_id when orgId is set', async () => {
+  it('fetches template by id only', async () => {
     const chain = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
@@ -146,18 +147,9 @@ describe('MailService', () => {
       of({ status: 200, data: { status: 'success', data: {} } }),
     );
 
-    await service.send({
-      ...baseDto,
-      orgId: '660e8400-e29b-41d4-a716-446655440001',
-    });
+    await service.send(templateId, baseDto);
 
-    expect(chain.eq).toHaveBeenCalledWith(
-      'id',
-      '550e8400-e29b-41d4-a716-446655440000',
-    );
-    expect(chain.eq).toHaveBeenCalledWith(
-      'org_id',
-      '660e8400-e29b-41d4-a716-446655440001',
-    );
+    expect(chain.eq).toHaveBeenCalledTimes(1);
+    expect(chain.eq).toHaveBeenCalledWith('id', templateId);
   });
 });

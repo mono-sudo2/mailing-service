@@ -25,25 +25,20 @@ export class MailService {
     private readonly http: HttpService,
   ) {}
 
-  async send(dto: SendMailDto): Promise<unknown> {
-    const row = await this.fetchTemplate(dto);
+  async send(templateId: string, dto: SendMailDto): Promise<unknown> {
+    const row = await this.fetchTemplate(templateId);
     const variables = dto.variables;
     const htmlBody = Handlebars.compile(row.html_content)(variables);
     const subject = Handlebars.compile(dto.subject)(variables);
     return this.sendPostal(dto, subject, htmlBody);
   }
 
-  private async fetchTemplate(dto: SendMailDto): Promise<TemplateRow> {
-    let query = this.supabase
+  private async fetchTemplate(templateId: string): Promise<TemplateRow> {
+    const { data, error } = await this.supabase
       .from('templates')
       .select('html_content')
-      .eq('id', dto.templateId);
-
-    if (dto.orgId !== undefined) {
-      query = query.eq('org_id', dto.orgId);
-    }
-
-    const { data, error } = await query.maybeSingle();
+      .eq('id', templateId)
+      .maybeSingle();
 
     if (error) {
       throw new InternalServerErrorException(error.message);
