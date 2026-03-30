@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -15,10 +16,13 @@ import type { SendMailDto } from './dto/send-mail.dto';
 
 type TemplateRow = {
   html_content: string;
+  subject: string;
 };
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
+
   constructor(
     @Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient,
     private readonly config: ConfigService,
@@ -29,14 +33,15 @@ export class MailService {
     const row = await this.fetchTemplate(templateId);
     const variables = dto.variables;
     const htmlBody = Handlebars.compile(row.html_content)(variables);
-    const subject = Handlebars.compile(dto.subject)(variables);
+    const subjectTemplate = dto.subject ?? row.subject;
+    const subject = Handlebars.compile(subjectTemplate)(variables);
     return this.sendPostal(dto, subject, htmlBody);
   }
 
   private async fetchTemplate(templateId: string): Promise<TemplateRow> {
     const { data, error } = await this.supabase
       .from('templates')
-      .select('html_content')
+      .select('html_content, subject')
       .eq('id', templateId)
       .maybeSingle();
 
@@ -85,25 +90,35 @@ export class MailService {
       }),
     );
 
-    const body = response.data as {
+    const body = response.data as Record<string, unknown> & {
       status?: string;
-      data?: { message_id?: string; messages?: unknown };
+      data?: unknown;
       error?: string;
-      errors?: string[];
+      errors?: unknown;
     };
 
     if (response.status >= 400) {
+      this.logger.warn(
+        `Postal HTTP ${response.status} from ${url}: ${JSON.stringify(body)}`,
+      );
       throw new BadGatewayException({
         message: 'Postal HTTP error',
         status: response.status,
-        body,
+        postal: body,
       });
     }
 
     if (body?.status === 'error') {
+      const summary =
+        typeof body.error === 'string'
+          ? body.error
+          : 'Postal rejected the message';
+      this.logger.warn(
+        `Postal API returned status=error: ${JSON.stringify(body)}`,
+      );
       throw new BadGatewayException({
-        message: body.error ?? 'Postal rejected the message',
-        errors: body.errors,
+        message: summary,
+        postal: body,
       });
     }
 

@@ -70,7 +70,7 @@ describe('MailService', () => {
 
   it('loads template, compiles handlebars, sends to Postal', async () => {
     maybeSingle.mockResolvedValue({
-      data: { html_content: '<p>Hello {{name}}</p>' },
+      data: { html_content: '<p>Hello {{name}}</p>', subject: 'Template {{name}}' },
       error: null,
     });
 
@@ -116,7 +116,7 @@ describe('MailService', () => {
 
   it('throws BadGatewayException when Postal returns error status', async () => {
     maybeSingle.mockResolvedValue({
-      data: { html_content: '<p>x</p>' },
+      data: { html_content: '<p>x</p>', subject: 'Template subject' },
       error: null,
     });
 
@@ -140,7 +140,7 @@ describe('MailService', () => {
     };
     mockSupabase.from.mockReturnValue(chain);
     maybeSingle.mockResolvedValue({
-      data: { html_content: '<p></p>' },
+      data: { html_content: '<p></p>', subject: 'Template subject' },
       error: null,
     });
     httpPost.mockReturnValue(
@@ -151,5 +151,36 @@ describe('MailService', () => {
 
     expect(chain.eq).toHaveBeenCalledTimes(1);
     expect(chain.eq).toHaveBeenCalledWith('id', templateId);
+  });
+
+  it('falls back to template subject when dto subject is missing', async () => {
+    maybeSingle.mockResolvedValue({
+      data: {
+        html_content: '<p>Hello {{name}}</p>',
+        subject: 'Template hi {{name}}',
+      },
+      error: null,
+    });
+    httpPost.mockReturnValue(
+      of({
+        status: 200,
+        data: { status: 'success', data: { message_id: 'mid-2' } },
+      }),
+    );
+
+    const dtoWithoutSubject = {
+      to: ['user@test.local'],
+      variables: { name: 'Ada' },
+    } as SendMailDto;
+
+    await service.send(templateId, dtoWithoutSubject);
+
+    expect(httpPost).toHaveBeenCalledWith(
+      'https://postal.test/api/v1/send/message',
+      expect.objectContaining({
+        subject: 'Template hi Ada',
+      }),
+      expect.any(Object),
+    );
   });
 });

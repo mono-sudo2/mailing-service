@@ -36,8 +36,9 @@ export class SendMailDto {
   @IsEmail({}, { each: true })
   to!: string[];
 
+  @IsOptional()
   @IsString()
-  subject!: string;
+  subject?: string;
 
   @IsObject()
   variables!: Record<string, unknown>;

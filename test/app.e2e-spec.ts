@@ -77,6 +77,26 @@ describe('MailController (e2e)', () => {
         }),
       );
     });
+
+    it('/mail/send/:templateId (POST) accepts missing subject', async () => {
+      const body = {
+        to: 'one@example.com',
+        variables: { name: 'Test' },
+      };
+
+      await request(app.getHttpServer())
+        .post(`/mail/send/${templateId}`)
+        .send(body)
+        .expect(201);
+
+      expect(send).toHaveBeenCalledWith(
+        templateId,
+        expect.objectContaining({
+          to: ['one@example.com'],
+          variables: body.variables,
+        }),
+      );
+    });
   });
 
   describe('with MAIL_SERVICE_API_KEY', () => {
